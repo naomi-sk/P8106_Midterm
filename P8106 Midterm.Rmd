@@ -1,0 +1,18 @@
+---
+title: "P8106 Midterm"
+author:
+- "Naomi Simon-Kumar, Ila Kanneboyina, Shayne Estill"
+- ns3782
+date: "03/24/2025"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+```
