@@ -145,6 +145,28 @@ Based on the exploratory analysis of continuous predictors, time since vaccinati
 
 ## Model Selection
 
+#Linear Regression - Ila
+```{r}
+
+```
+
+
+#Elastic Net - Shayne 
+```{r}
+
+```
+
+#LDA - Shayne 
+```{r}
+
+```
+
+#MARS - Naomi
+```{r}
+
+```
+
+#GAM - Naomi
 ```{r}
 
 ```
