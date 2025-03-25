@@ -141,6 +141,8 @@ p5 <- ggplot(training_data, aes(x = factor(hypertension), y = log_antibody)) +
 
 ```
 
+Based on the exploratory analysis of continuous predictors, time since vaccination appears to be right-skewed.
+
 ## Model Selection
 
 ```{r}
