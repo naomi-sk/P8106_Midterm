@@ -26,7 +26,7 @@ library(tidyverse)
 library(caret)
 library(ggplot2)  
 library(patchwork)
-
+library(corrplot)
 
 ```
 
@@ -46,6 +46,12 @@ str(training_data)
 
 # Set seed for reproducibility
 set.seed(299)
+
+# Set 10-fold cross-validation
+ctrl1 <- trainControl(method = "cv", number = 10)
+
+# Remove non-predictor variables
+training_data <- training_data %>% select(-id) # remove ID variable 
 
 ```
 
@@ -139,6 +145,16 @@ p5 <- ggplot(training_data, aes(x = factor(hypertension), y = log_antibody)) +
 # Using patchwork
 ((p1 + p2) / (p3 + p4) / (p5 + plot_spacer())) 
 
+
+## Correlation Plot
+
+# Matrix of predictors 
+x <- model.matrix(log_antibody ~ ., training_data)[, -1]
+
+# Vector of response
+y <- training_data$log_antibody
+corrplot(cor(x), method = 'circle', type = 'full')
+
 ```
 
 Based on the exploratory analysis of continuous predictors, time since vaccination appears to be right-skewed.
@@ -161,10 +177,42 @@ Based on the exploratory analysis of continuous predictors, time since vaccinati
 
 ```
 
-#MARS - Naomi
+# MARS - Naomi
 ```{r}
 
+# Set seed for reproducibility
+set.seed(299)
+
+# Specify MARS grid - first attempt 
+# mars_grid <- expand.grid(
+#  degree = 1:3, # degree of interactions
+#  nprune = 2:15  # no. of retained terms
+# )
+
+# MARS tuning grid - expanding grid 
+mars_grid <- expand.grid(
+  degree = 1:4,     # interaction degrees
+  nprune = 2:20     # number of terms
+)
+
+# Train MARS model to predict log_antibody
+mars.fit <- train(log_antibody ~ .,
+                  data = training_data,
+                  method = "earth",
+                  tuneGrid = mars_grid,
+                  trControl = ctrl1)
+
+# Plot CV performance
+ggplot(mars.fit)
+
 ```
+
+To evaluate the optimal complexity of the MARS model, I performed a grid search across degrees 1 to 4 and a range of 2 to 20 terms (`nprune`). Cross-validation results showed that models with degree = 1 consistently achieved the lowest RMSE, and increasing the interaction degree did not lead to further improvements. 
+
+As the interaction `degree` increased, RMSE values became more variable rather than decreasing steadily, suggesting there was no gain in prediction accuracy. The `nprune` range of 2 to 20 also appeared appropriate — RMSE decreased initially with more terms but then plateaued, indicating that adding further complexity would not significantly improve model performance. Based on this, I selected `degree = 1` as the optimal choice.
+
+In other words, cross-validation results showed that a model with approximately 9 terms and no interactions (product degree = 1) minimized prediction error (RMSE ≈ 0.529). 
+
 
 #GAM - Naomi
 ```{r}
