@@ -17,6 +17,33 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ```
 
+## Libraries
+
+```{r}
+
+# Load libraries
+library(tidyverse)
+library(caret)
+library(ggplot2)  
+
+```
+
+## Partition into training and testing set
+
+```{r}
+
+# Load training data
+training_data <- load("dat1.RData")  
+
+# Load test data (dat2)
+testing_data <- load("dat2.RData") 
+
+# Set seed for reproducibility
+set.seed(299)
+
+
+```
+
 ## Exploratory Analysis
 
 ```{r}
@@ -28,3 +55,4 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```{r}
 
 ```
+
