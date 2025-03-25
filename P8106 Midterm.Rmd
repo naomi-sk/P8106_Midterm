@@ -25,6 +25,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(caret)
 library(ggplot2)  
+library(patchwork)
+
 
 ```
 
@@ -33,20 +35,84 @@ library(ggplot2)
 ```{r}
 
 # Load training data
-training_data <- load("dat1.RData")  
+load("dat1.RData") 
+training_data <- dat1
 
 # Load test data (dat2)
-testing_data <- load("dat2.RData") 
+load("dat2.RData") 
+testing_data <- dat2
+
+str(training_data)
 
 # Set seed for reproducibility
 set.seed(299)
-
 
 ```
 
 ## Exploratory Analysis
 
 ```{r}
+
+## Set the plotting theme
+theme1 <- trellis.par.get()
+theme1$plot.symbol$col <- rgb(.2, .4, .2, .5)
+theme1$plot.symbol$pch <- 16
+theme1$plot.line$col <- rgb(.8, .1, .1, 1)
+theme1$plot.line$lwd <- 2
+theme1$strip.background$col <- rgb(.0, .2, .6, .2)
+trellis.par.set(theme1)
+
+## Feature Plots for numeric predictors (L2)
+featurePlot(
+  x = training_data[, c("age", "height", "weight", "bmi", "SBP", "LDL", "time")],
+  y = training_data$log_antibody,
+  plot = "scatter",
+  span = 0.5,
+  labels = c("Predictors", "Log Antibody"),
+  type = c("p", "smooth"),
+  layout = c(3, 2)
+)
+
+## Boxplots for categorical predictors
+
+p1 <- ggplot(training_data, aes(x = factor(gender), y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Gender (0 = Female, 1 = Male)", y = NULL) +
+  theme_bw()
+
+p2 <- ggplot(training_data, aes(x = smoking, y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Smoking Status", y = NULL) +
+  theme_bw()
+
+p3 <- ggplot(training_data, aes(x = race, y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Race", y = NULL) +
+  theme_bw()
+
+p4 <- ggplot(training_data, aes(x = factor(diabetes), y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Diabetes", y = NULL) +
+  theme_bw()
+
+p5 <- ggplot(training_data, aes(x = factor(hypertension), y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Hypertension", y = NULL) +
+  theme_bw()
+
+# Using patchwork
+((p1 + p2) / (p3 + p4) / (p5 + plot_spacer())) +
+  plot_annotation(
+    title = NULL,
+    theme = theme(plot.margin = margin(5, 5, 5, 5))
+  ) &
+  theme(axis.title.y = element_blank()) &
+  plot_layout(guides = "collect") &
+  plot_annotation(tag_levels = NULL) &
+  theme(strip.text = element_text(size = 10)) &
+  theme(axis.title.y.left = element_text("Log Antibody Level", angle = 90, vjust = 2))
+
+
 
 ```
 
