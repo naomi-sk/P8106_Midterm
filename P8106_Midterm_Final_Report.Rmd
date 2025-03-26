@@ -60,17 +60,139 @@ testing_data <- testing_data %>% select(-id) # remove ID variable
 
 # 1. Introduction
 
-Lorem ipsum dolor.
+## 1.1. Background and Study Objective
+
+This study aims to build a prediction model for antibody responses to a newly authorized vaccine, as measured by log-transformed antibody levels from dried blood spot samples. Our objective is to develop an accurate model to improve understanding of vaccine effectiveness across different population segments and to support the monitoring of immune protection over time.
+
+## 1.2. Data Source and Description
+
+The primary dataset (**dat1.RData**) contains demographic and clinical information from participants in a vaccine response study. Variables include age, gender, race/ethnicity, body mass index (BMI), blood pressure, cholesterol levels, diabetes, hypertension, and time since vaccination (in days). The outcome of interest is the log-transformed antibody level, measured using dried blood spot samples. The dataset consists of records from 5000 participants with 13 variables, excluding the unique identifier variable.
+A second independent dataset (**dat2.RData**) with identical structure was collected several months later to assess model generalizability. The dataset consists of records from 1000 participants.
+
+# 2. Exploratory Analysis
+
+## 2.1. Dataset Overview
 
 ```{r}
 
 
 ```
 
-# 2. Exploratory Analysis
+## 2.2. Summary Statistics
 
 ```{r}
 
+
+```
+
+## 2.3. Correlation Analysis
+
+```{r}
+
+
+```
+
+## 2.4. Exploratory Plots
+
+```{r}
+
+
+```
+
+
+# 3. Model Training
+
+## 3.1. Data Preparation
+
+```{r}
+
+
+```
+
+## 3.2. Cross-validation approach
+
+For model training and evaluation, we implemented 10-fold cross-validation on the training dataset (80% of the original data) using the trainControl function This partitioned the training data into 10 equal subsets, where each model was trained on 9 folds and validated on the remaining fold, rotating through all folds.
+
+## 3.3. Models
+
+### 3.3.1. Linear Regression
+
+```{r}
+
+```
+
+### 3.3.2. Elastic Net
+
+```{r}
+
+```
+
+### 3.3.3. MARS
+
+```{r}
+
+```
+
+### 3.3.4. GAM
+
+```{r}
+
+```
+
+# 4. Results
+
+## 4.1. Model Comparison and Selection
+
+
+```{r}
+
+```
+
+## 4.2. Final Model: xxx
+
+* Detailed specification of the selected model (coefficients, terms, etc.)
+* Visualisations if appropriate
+
+```{r}
+
+```
+
+### 4.2.1. Evaluation of model performance
+
+Test set performance metrics & interpretation
+
+```{r}
+
+```
+
+## 4.3. Interpretation
+
+i.e., summary of model results
+
+```{r}
+
+```
+
+# 5. Conclusion
+
+```{r}
+
+```
+
+
+# 6. References
+
+If relevant
+
+```{r}
+
+```
+
+# 7. Appendices
+
+If relevant
+
+```{r}
 
 ```
 
