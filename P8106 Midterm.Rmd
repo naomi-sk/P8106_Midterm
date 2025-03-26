@@ -52,6 +52,7 @@ ctrl1 <- trainControl(method = "cv", number = 10)
 
 # Remove non-predictor variables
 training_data <- training_data %>% select(-id) # remove ID variable 
+testing_data <- testing_data %>% select(-id) # remove ID variable 
 
 ```
 
@@ -205,6 +206,15 @@ mars.fit <- train(log_antibody ~ .,
 # Plot CV performance
 ggplot(mars.fit)
 
+
+# Optimal parameters
+mars.fit$bestTune
+
+# Final model coefficients
+mars_coef <- coef(mars.fit$finalModel)
+
+mars_coef
+
 ```
 
 To evaluate the optimal complexity of the MARS model, I performed a grid search across degrees 1 to 4 and a range of 2 to 20 terms (`nprune`). Cross-validation results showed that models with degree = 1 consistently achieved the lowest RMSE, and increasing the interaction degree did not lead to further improvements. 
@@ -213,8 +223,54 @@ As the interaction `degree` increased, RMSE values became more variable rather t
 
 In other words, cross-validation results showed that a model with approximately 9 terms and no interactions (product degree = 1) minimized prediction error (RMSE ≈ 0.529). 
 
+**Optimal parameters and final model coefficients**
+The best-tuned model selected `degree = 1` and `nprune = 9`. Therefore, the final model includes 9 retained terms with no interaction effects.
 
-#GAM - Naomi
+Next, obtaining the test error:
+
+```{r}
+
+# Set seed for reproducibility
+set.seed(299)
+
+# Obtain response variable from testing data
+y_testing <- testing_data$log_antibody
+
+# Predict on test data using trained MARS model
+y_pred_MARS <- predict(mars.fit, newdata = testing_data)
+
+# Compute RMSE (Test Error)
+test_rmse_mars <- sqrt(mean((y_testing - y_pred_MARS)^2))
+
+# Print test RMSE
+test_rmse_mars
+
+```
+
+Therefore, the test error (RMSE) is `0.5327718`.
+
+Next, obtaining the training error:
+
+```{r}
+
+# Set seed for reproducibility
+set.seed(299)
+
+# Predict on training data using MARS model
+y_pred_mars_train <- predict(mars.fit, newdata = training_data)
+
+# Compute Training RMSE for MARS Model
+train_rmse_mars <- sqrt(mean((training_data$log_antibody - y_pred_mars_train)^2))
+
+# Print Training RMSE
+print(train_rmse_mars)
+
+```
+
+Therefore, the training error (RMSE) is `0.5261998`.
+
+
+# GAM - Naomi
 ```{r}
 
 ```
