@@ -12,18 +12,62 @@ output:
 
 ```{r setup, include=FALSE}
 
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+# Ensures R code is suppressed
+knitr::opts_chunk$set(
+  echo = FALSE,         
+  warning = FALSE,      
+  message = FALSE,      
+  results = 'hide'      
+)
 
 ```
 
-# Introduction
+```{r}
+
+## Load Libraries
+
+library(tidyverse)
+library(caret)
+library(ggplot2)  
+library(patchwork)
+library(corrplot)
+library(mgcv)
+library(tidymodels)
+library(earth)
+
+
+## Data Preparation
+
+# Load training data
+load("dat1.RData") 
+training_data <- dat1
+
+# Load test data (dat2)
+load("dat2.RData") 
+testing_data <- dat2
+
+# Set seed for reproducibility
+set.seed(299)
+
+# Set 10-fold cross-validation
+ctrl1 <- trainControl(method = "cv", number = 10)
+
+# Remove non-predictor variables
+training_data <- training_data %>% select(-id) # remove ID variable 
+testing_data <- testing_data %>% select(-id) # remove ID variable 
+
+```
+
+# 1. Introduction
+
+Lorem ipsum dolor.
 
 ```{r}
 
 
 ```
 
-# Exploratory Analysis
+# 2. Exploratory Analysis
 
 ```{r}
 
