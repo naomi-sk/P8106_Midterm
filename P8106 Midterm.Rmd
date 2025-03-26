@@ -27,6 +27,9 @@ library(caret)
 library(ggplot2)  
 library(patchwork)
 library(corrplot)
+library(mgcv)
+library(tidymodels)
+library(earth)
 
 ```
 
@@ -269,9 +272,39 @@ print(train_rmse_mars)
 
 Therefore, the training error (RMSE) is `0.5261998`.
 
-
 # GAM - Naomi
+
+I will proceed with constructing a GAM model, allowing us to mix non-linear and linear terms and build a model estimating the relationship between the outcome (`log_antibody`) and predictors in the provided dataset.
+ 
 ```{r}
 
+# Set seed for reproducibility
+set.seed(299)
+
+# Fit a GAM model, using training data
+gam_antibody <- gam(log_antibody ~ gender + race + smoking +
+                      s(height) + s(weight) + s(bmi) +
+                      diabetes + hypertension + s(SBP) + 
+                      s(LDL) + s(time), 
+                    data = training_data)
+
+# Summary
+summary(gam_antibody)
+
+# Plot GAM 
+plot(gam_antibody)
+
+
 ```
+
+* Some of the predictors have estimated degrees of freedom (edf) greater than 1, specifically height, BMI, and time, indicating that they are nonlinear smooth functions. This is supported by the GAM predictor plots.
+
+* Others appear approximately linear (edf ≈ 1), including weight, SBP, and LDL. 
+
+* Among the nonlinear terms, BMI and time are highly significant (p < 2e-16), suggesting meaningful nonlinear associations with the log antibody levels.
+
+* However, not all nonlinear terms with edf > 1 are statistically significant. i.e, height has an edf of 2.272 but a non-significant p-value (p = 0.3736).
+
+* SBP is a linear term (edf = 1.00) and also statistically significant (p = 0.0182), suggesting a meaningful linear relationship. It is the only linear term that is statistically significant. 
+
 
