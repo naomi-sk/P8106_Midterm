@@ -163,25 +163,25 @@ corrplot(cor(x), method = 'circle', type = 'full')
 
 Based on the exploratory analysis of continuous predictors, time since vaccination appears to be right-skewed.
 
-## Model Selection
+# Model Selection
 
-#Linear Regression - Ila
+## Linear Regression - Ila
 ```{r}
 
 ```
 
 
-#Elastic Net - Shayne 
+## Elastic Net - Shayne 
 ```{r}
 
 ```
 
-#LDA - Shayne 
+## LDA - Shayne 
 ```{r}
 
 ```
 
-# MARS - Naomi
+## MARS - Naomi
 ```{r}
 
 # Set seed for reproducibility
@@ -270,9 +270,9 @@ print(train_rmse_mars)
 
 ```
 
-Therefore, the training error (RMSE) is `0.5261998`.
+Therefore, the training error (RMSE) is **0.5261998**.
 
-# GAM - Naomi
+## GAM - Naomi
 
 I will proceed with constructing a GAM model, allowing us to mix non-linear and linear terms and build a model estimating the relationship between the outcome (`log_antibody`) and predictors in the provided dataset.
  
@@ -307,4 +307,23 @@ plot(gam_antibody)
 
 * SBP is a linear term (edf = 1.00) and also statistically significant (p = 0.0182), suggesting a meaningful linear relationship. It is the only linear term that is statistically significant. 
 
+Next, obtaining the training error:
+
+```{r}
+
+# Note I have not done test error
+# Set seed for reproducibility
+set.seed(299)
+
+# Prediction using training data
+y_train_pred_gam <- predict(gam_antibody, newdata = training_data)
+
+# Training RMSE
+train_rmse_gam <- sqrt(mean((training_data$log_antibody - y_train_pred_gam)^2))
+
+print(train_rmse_gam)
+
+```
+
+Therefore, the training set error (RMSE) is **0.5312249**.
 
