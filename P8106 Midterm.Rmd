@@ -20,6 +20,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ```{r}
 
+install.packages("corrplot")
+
 # Load libraries
 library(tidyverse)
 library(caret)
@@ -33,7 +35,6 @@ library(boot)
 library(table1)
 library(knitr)
 library(pls)
-
 
 ```
 
@@ -49,8 +50,26 @@ training_data <- dat1
 load("dat2.RData") 
 testing_data <- dat2
 
-str(training_data)
+# Convert categorical variables to factor with meaningful labels
+training_data <- training_data %>%
+  mutate(gender = factor(gender, 
+                         levels = c(0, 1), 
+                         labels = c("Female", "Male")), 
+    race = factor(as.character(race), 
+                  levels = c("1", "2", "3", "4"), 
+                  labels = c("White", "Asian", "Black", "Hispanic")),
+    smoking = factor(as.character(smoking), levels = c("0", "1", "2"), 
+                     labels = c("Never", "Former", "Current")),
+    diabetes = factor(diabetes, 
+                      levels = c(0, 1), 
+                      labels = c("No", "Yes")),
+    hypertension = factor(hypertension, 
+                          levels = c(0, 1), 
+                          labels = c("No", "Yes")))
 
+# Check structure of dataset
+str(training_data)
+                          
 # Set seed for reproducibility
 set.seed(299)
 
@@ -61,34 +80,17 @@ ctrl1 <- trainControl(method = "cv", number = 10)
 training_data <- training_data %>% select(-id) # remove ID variable 
 testing_data <- testing_data %>% select(-id) # remove ID variable 
 
-# convert categorical variables to factors
-# Convert to factor with meaningful labels
-training_data$gender <- factor(training_data$gender, levels = c(0, 1), 
-                               labels = c("Female", "Male"))
-training_data$race <- factor(training_data$race, levels = c(1,2,3,4), 
-                             labels = c("White", "Asian", "Black", "Hispanic"))
-training_data$smoking <- factor(training_data$smoking, levels = c(0, 1, 2), 
-                               labels = c("Never", "Former", "Current"))
-training_data$diabetes <- factor(training_data$diabetes, levels = c(0, 1), 
-                                 labels = c("No", "Yes"))
-training_data$hypertension <- factor(training_data$hypertension, levels = c(0, 1), 
-                                     labels = c("No", "Yes"))
 
+## Correlation Plot
 
-# Do the same for validation dataset
-# Convert to factor with meaningful labels
-testing_data$gender <- factor(testing_data$gender, levels = c(0, 1), labels = c("Female", "Male"))
-testing_data$race <- factor(testing_data$race, levels = c(1,2,3,4), 
-                             labels = c("White", "Asian", "Black", "Hispanic"))
-testing_data$smoking <- factor(testing_data$smoking, levels = c(0, 1, 2), 
-                               labels = c("Never", "Former", "Current"))
-testing_data$diabetes <- factor(testing_data$diabetes, levels = c(0, 1), 
-                                 labels = c("No", "Yes"))
-testing_data$hypertension <- factor(testing_data$hypertension, levels = c(0, 1), 
-                                     labels = c("No", "Yes"))
+# Matrix of predictors 
+x <- model.matrix(log_antibody ~ ., training_data)[, -1]
 
+# Vector of response
+y <- training_data$log_antibody
 
-
+# Produce corrplot
+corrplot::corrplot(cor(x), method = 'circle', type = 'full')
 
 ```
 
@@ -183,16 +185,8 @@ p5 <- ggplot(training_data, aes(x = factor(hypertension), y = log_antibody)) +
 ((p1 + p2) / (p3 + p4) / (p5 + plot_spacer())) 
 
 
-## Correlation Plot
-
-# Matrix of predictors 
-x <- model.matrix(log_antibody ~ ., training_data)
-
-# Vector of response
-y <- training_data$log_antibody
-corrplot(cor(x), method = 'circle', type = 'full')
-
 ```
+
 
 ```{r table1}
 # https://cran.r-project.org/web/packages/table1/vignettes/table1-examples.html 
