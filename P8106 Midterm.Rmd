@@ -32,6 +32,7 @@ library(earth)
 library(boot) 
 library(table1)
 library(knitr)
+library(pls)
 
 
 ```
@@ -249,15 +250,187 @@ print(summary_model)
 ```
 The first model we test is a simple linear model. Looking at the pdp plots none of the variables seem to show a linear trend indicating that a simple linear model is not going to be the best model and there may be more complexities.
 
-## Elastic Net - Shayne 
-```{r}
 
+
+
+
+#Elastic Net - Shayne 
+```{r}
+ctrl1 <- trainControl(method = "repeatedcv",
+number = 10,
+repeats = 5,
+selectionFunction = "best")
+
+set.seed(25)
+enet_fit <- train(log_antibody ~ ., data = training_data, method = "glmnet",
+            tuneGrid = expand.grid(alpha = seq(0, 1, length = 21),
+            lambda = exp(seq(4, -2, length = 100))),
+            trControl = ctrl_1)
 ```
 
-## LDA - Shayne 
 ```{r}
-
+enet_fit$resample
 ```
+
+The r-squared value is relatively low, thus providing evidence that this may not be a great model. 
+
+#PCR
+```{r}
+set.seed(26)
+pcr_mod <- pcr(log_antibody ~ .,
+data = training_data,
+scale = TRUE, # scale = FALSE by default
+validation = "CV")
+summary(pcr_mod)
+
+
+# plot cross-validated mean squared error (MSEP)
+validationplot(pcr_mod, val.type = "MSEP", legendpos = "topright")
+```
+
+```{r}
+# determine the optimal number of components
+cv_mse <- RMSEP(pcr_mod)
+ncomp_cv <- which.min(cv_mse$val[1,,]) - 1
+ncomp_cv
+```
+
+```{r}
+# calculate test MSE
+y2 = testing_data$log_antibody
+
+predy2_pcr <- predict(pcr_mod, newdata = testing_data,
+ncomp = ncomp_cv)
+mean((y2 - predy2_pcr)^2)
+```
+The PCR MSE is 0.3592698
+
+
+
+
+##PCR using caret
+```{r}
+x <- model.matrix(log_antibody ~ ., training_data)
+y <- training_data$log_antibody
+
+x2 <- model.matrix(log_antibody ~ .,testing_data)
+y2 <- testing_data$log_antibody
+```
+
+```{r}
+ctrl1 <- trainControl(method = "repeatedcv",
+number = 10,
+repeats = 5,
+selectionFunction = "best") # "oneSE" for the 1SE rule
+# show information about the model
+modelLookup("pcr")
+```
+
+```{r}
+set.seed(26)
+pcr_fit <- train(x, y,
+method = "pcr",
+tuneGrid = data.frame(ncomp = 1:16),
+trControl = ctrl1,
+preProcess = c("center", "scale"))
+```
+
+```{r}
+predy2_pcr2 <- predict(pcr_fit, newdata = x2)
+mean((y2 - predy2_pcr2)^2)
+```
+
+```{r}
+set.seed(26)
+pcr_fit2 <- train(x, y,
+method = "pcr",
+tuneGrid = data.frame(ncomp = 1:16),
+trControl = ctrl1,
+scale = TRUE)
+
+predy2_pcr3 <- predict(pcr_fit2, newdata = x2)
+mean((y2 - predy2_pcr3)^2)
+```
+
+```{r}
+ggplot(pcr_fit, highlight = TRUE) + theme_bw()
+```
+
+
+##PLS using caret 
+```{r}
+set.seed(26)
+pls_fit <- train(x, y,
+method = "pls",
+tuneGrid = data.frame(ncomp = 1:16),
+trControl = ctrl1,
+preProcess = c("center", "scale"))
+predy2_pls2 <- predict(pls_fit, newdata = x2)
+mean((y2 - predy2_pls2)^2)
+```
+
+```{r}
+ggplot(pls_fit, highlight = TRUE)
+```
+
+
+
+#PLS
+```{r}
+set.seed(26)
+pls_mod <- plsr(log_antibody ~ .,
+data = training_data,
+scale = TRUE,
+validation = "CV")
+summary(pls_mod)
+```
+
+```{r}
+# plot cross-validated MSEP for PLS
+validationplot(pls_mod, val.type = "MSEP", legendpos = "topright")
+```
+
+```{r}
+# determine the optimal number of components
+cv_mse <- RMSEP(pls_mod)
+ncomp_cv <- which.min(cv_mse$val[1,,]) - 1
+ncomp_cv
+```
+
+```{r}
+# calculate test MSE
+predy2_pls <- predict(pls_mod, newdata = testing_data,
+ncomp = ncomp_cv)
+mean((y2 - predy2_pls)^2)
+```
+The PLS MSE is 0.3214487
+
+```{r}
+set.seed(26)
+enet_fit <- train(log_antibody ~ .,
+data = training_data,
+method = "glmnet",
+tuneGrid = expand.grid(alpha = seq(0, 1, length = 21),
+lambda = exp(seq(6, 0, length = 100))),
+trControl = ctrl1)
+```
+
+```{r}
+resamp <- resamples(list(elastic_net = enet_fit,
+pls = pls_fit,
+pcr = pcr_fit))
+summary(resamp)
+```
+
+```{r}
+bwplot(resamp, metric = "RMSE")
+```
+
+
+
+
+
+
 
 ## MARS - Naomi
 ```{r}
