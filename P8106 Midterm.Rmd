@@ -294,6 +294,20 @@ summary(gam_antibody)
 plot(gam_antibody)
 
 
+# Use train() to fit GAM Model
+
+gam.fit <- train(
+  log_antibody ~ gender + race + smoking +
+    height + weight + bmi +
+    diabetes + hypertension + SBP + 
+    LDL + time,
+  data = training_data,
+  method = "gam",
+  trControl = ctrl1
+)
+
+summary(gam.fit)
+
 ```
 
 * Some of the predictors have estimated degrees of freedom (edf) greater than 1, specifically height, BMI, and time, indicating that they are nonlinear smooth functions. This is supported by the GAM predictor plots.
@@ -325,4 +339,24 @@ print(train_rmse_gam)
 ```
 
 Therefore, the training set error (RMSE) is **0.5312249**.
+
+
+## Code for Comparison/Model selection
+
+```{r}
+
+# Compare models using cross-validated RMSE
+resamp <- resamples(list(
+  mars = mars.fit,
+  gam = gam.fit))
+
+# Print CV summary
+summary(resamp)
+
+# Plot RMSE comparison
+bwplot(resamp, metric = "RMSE")
+
+
+```
+
 
