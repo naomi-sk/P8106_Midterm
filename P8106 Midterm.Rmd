@@ -29,6 +29,10 @@ library(corrplot)
 library(mgcv)
 library(tidymodels)
 library(earth)
+library(boot) 
+library(table1)
+library(knitr)
+
 
 ```
 
@@ -46,6 +50,32 @@ testing_data <- dat2
 
 str(training_data)
 
+# convert categorical variables to factors
+# Convert to factor with meaningful labels
+training_data$gender <- factor(training_data$gender, levels = c(0, 1), 
+                               labels = c("Female", "Male"))
+training_data$race <- factor(training_data$race, levels = c(1,2,3,4), 
+                             labels = c("White", "Asian", "Black", "Hispanic"))
+training_data$smoking <- factor(training_data$smoking, levels = c(0, 1, 2), 
+                               labels = c("Never", "Former", "Current"))
+training_data$diabetes <- factor(training_data$diabetes, levels = c(0, 1), 
+                                 labels = c("No", "Yes"))
+training_data$hypertension <- factor(training_data$hypertension, levels = c(0, 1), 
+                                     labels = c("No", "Yes"))
+
+
+# Do the same for validation dataset
+# Convert to factor with meaningful labels
+testing_data$gender <- factor(testing_data$gender, levels = c(0, 1), labels = c("Female", "Male"))
+testing_data$race <- factor(testing_data$race, levels = c(1,2,3,4), 
+                             labels = c("White", "Asian", "Black", "Hispanic"))
+testing_data$smoking <- factor(testing_data$smoking, levels = c(0, 1, 2), 
+                               labels = c("Never", "Former", "Current"))
+testing_data$diabetes <- factor(testing_data$diabetes, levels = c(0, 1), 
+                                 labels = c("No", "Yes"))
+testing_data$hypertension <- factor(testing_data$hypertension, levels = c(0, 1), 
+                                     labels = c("No", "Yes"))
+
 # Set seed for reproducibility
 set.seed(299)
 
@@ -55,6 +85,7 @@ ctrl1 <- trainControl(method = "cv", number = 10)
 # Remove non-predictor variables
 training_data <- training_data %>% select(-id) # remove ID variable 
 testing_data <- testing_data %>% select(-id) # remove ID variable 
+
 
 ```
 
@@ -160,15 +191,63 @@ corrplot(cor(x), method = 'circle', type = 'full')
 
 ```
 
+```{r table1}
+# https://cran.r-project.org/web/packages/table1/vignettes/table1-examples.html 
+
+label(training_data$height) <- "Height (cm)"
+label(training_data$age) <- "Age (yrs)"
+label(training_data$weight) <- "Weight (kgs)"
+label(training_data$bmi) <- "Body Mass Index (weight/ (height)^2)"
+label(training_data$SBP) <- "Systolic blood pressure (mmHg)"
+label(training_data$LDL) <- "LDL cholestrol (mg/dL)"
+label(training_data$time) <- "Time since vaccination (in days)"
+label(training_data$gender) <- "Gender"
+label(training_data$race) <- "Race"
+label(training_data$smoking) <- "Smoking status"
+label(training_data$diabetes) <- "Diabetes"
+label(training_data$hypertension) <- "Hypertension"
+
+
+
+table1= table1(~ gender + race + age + height + weight + bmi + SBP + LDL+ time + 
+         smoking + diabetes + hypertension, data=training_data)
+knitr::kable(table1)
+
+```
+
+
+
 Based on the exploratory analysis of continuous predictors, time since vaccination appears to be right-skewed.
 
 # Model Selection
 
 ## Linear Regression - Ila
 ```{r}
+# Set seed for reproducibility
+set.seed(299)
+
+# linear regression
+ctrl1 <- trainControl(method = "cv", number = 10)
+
+# Fit linear model
+lm.fit <- train(log_antibody ~ ., 
+                data = training_data, 
+                method = "lm", 
+                trControl = ctrl1)
+
+# Make predictions
+lm.pred <- predict(lm.fit, newdata = testing_data)
+
+# Calculate lm RMSE 
+lm_rmse <- RMSE(lm.pred, testing_data$log_antibody)
+lm_rmse
+
+# model summary
+summary_model <- summary(lm.fit$finalModel)
+print(summary_model)
 
 ```
-
+The first model we test is a simple linear model. Looking at the pdp plots none of the variables seem to show a linear trend indicating that a simple linear model is not going to be the best model and there may be more complexities.
 
 ## Elastic Net - Shayne 
 ```{r}
