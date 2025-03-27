@@ -341,7 +341,7 @@ print(train_rmse_gam)
 Therefore, the training set error (RMSE) is **0.5312249**.
 
 
-## Code for Comparison/Model selection
+# Code for Comparison/Model selection
 
 ```{r}
 
