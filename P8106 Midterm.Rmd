@@ -51,6 +51,16 @@ testing_data <- dat2
 
 str(training_data)
 
+# Set seed for reproducibility
+set.seed(299)
+
+# Set 10-fold cross-validation
+ctrl1 <- trainControl(method = "cv", number = 10)
+
+# Remove non-predictor variables
+training_data <- training_data %>% select(-id) # remove ID variable 
+testing_data <- testing_data %>% select(-id) # remove ID variable 
+
 # convert categorical variables to factors
 # Convert to factor with meaningful labels
 training_data$gender <- factor(training_data$gender, levels = c(0, 1), 
@@ -77,15 +87,7 @@ testing_data$diabetes <- factor(testing_data$diabetes, levels = c(0, 1),
 testing_data$hypertension <- factor(testing_data$hypertension, levels = c(0, 1), 
                                      labels = c("No", "Yes"))
 
-# Set seed for reproducibility
-set.seed(299)
 
-# Set 10-fold cross-validation
-ctrl1 <- trainControl(method = "cv", number = 10)
-
-# Remove non-predictor variables
-training_data <- training_data %>% select(-id) # remove ID variable 
-testing_data <- testing_data %>% select(-id) # remove ID variable 
 
 
 ```
@@ -184,7 +186,7 @@ p5 <- ggplot(training_data, aes(x = factor(hypertension), y = log_antibody)) +
 ## Correlation Plot
 
 # Matrix of predictors 
-x <- model.matrix(log_antibody ~ ., training_data)[, -1]
+x <- model.matrix(log_antibody ~ ., training_data)
 
 # Vector of response
 y <- training_data$log_antibody
@@ -256,16 +258,11 @@ The first model we test is a simple linear model. Looking at the pdp plots none 
 
 #Elastic Net - Shayne 
 ```{r}
-ctrl1 <- trainControl(method = "repeatedcv",
-number = 10,
-repeats = 5,
-selectionFunction = "best")
-
-set.seed(25)
+set.seed(299)
 enet_fit <- train(log_antibody ~ ., data = training_data, method = "glmnet",
             tuneGrid = expand.grid(alpha = seq(0, 1, length = 21),
             lambda = exp(seq(4, -2, length = 100))),
-            trControl = ctrl_1)
+            trControl = ctrl1)
 ```
 
 ```{r}
@@ -276,7 +273,7 @@ The r-squared value is relatively low, thus providing evidence that this may not
 
 #PCR
 ```{r}
-set.seed(26)
+set.seed(299)
 pcr_mod <- pcr(log_antibody ~ .,
 data = training_data,
 scale = TRUE, # scale = FALSE by default
@@ -318,16 +315,7 @@ y2 <- testing_data$log_antibody
 ```
 
 ```{r}
-ctrl1 <- trainControl(method = "repeatedcv",
-number = 10,
-repeats = 5,
-selectionFunction = "best") # "oneSE" for the 1SE rule
-# show information about the model
-modelLookup("pcr")
-```
-
-```{r}
-set.seed(26)
+set.seed(299)
 pcr_fit <- train(x, y,
 method = "pcr",
 tuneGrid = data.frame(ncomp = 1:16),
@@ -341,7 +329,7 @@ mean((y2 - predy2_pcr2)^2)
 ```
 
 ```{r}
-set.seed(26)
+set.seed(299)
 pcr_fit2 <- train(x, y,
 method = "pcr",
 tuneGrid = data.frame(ncomp = 1:16),
@@ -356,10 +344,12 @@ mean((y2 - predy2_pcr3)^2)
 ggplot(pcr_fit, highlight = TRUE) + theme_bw()
 ```
 
+We fit the PCR model using the function pcr(). PCR and PLS models are good for addressing
+multicollinearity by maximizing the variance of predictor variables. 
 
 ##PLS using caret 
 ```{r}
-set.seed(26)
+set.seed(299)
 pls_fit <- train(x, y,
 method = "pls",
 tuneGrid = data.frame(ncomp = 1:16),
@@ -377,7 +367,7 @@ ggplot(pls_fit, highlight = TRUE)
 
 #PLS
 ```{r}
-set.seed(26)
+set.seed(299)
 pls_mod <- plsr(log_antibody ~ .,
 data = training_data,
 scale = TRUE,
@@ -403,10 +393,15 @@ predy2_pls <- predict(pls_mod, newdata = testing_data,
 ncomp = ncomp_cv)
 mean((y2 - predy2_pls)^2)
 ```
-The PLS MSE is 0.3214487
+We fit the PLS model using the function plsr(). This method uses a small number of 
+the original inputs and considers out outcome, log antibody levels, making it more
+predictive over PCR potentially. 
+
+
+
 
 ```{r}
-set.seed(26)
+set.seed(299)
 enet_fit <- train(log_antibody ~ .,
 data = training_data,
 method = "glmnet",
@@ -414,6 +409,9 @@ tuneGrid = expand.grid(alpha = seq(0, 1, length = 21),
 lambda = exp(seq(6, 0, length = 100))),
 trControl = ctrl1)
 ```
+
+We fit an elastic net model using the train() with method = "glmnet" function. Elastic
+net models are good for effectively dealing with highly correlated groups of predictors. 
 
 ```{r}
 resamp <- resamples(list(elastic_net = enet_fit,
@@ -599,6 +597,9 @@ Therefore, the training set error (RMSE) is **0.5312249**.
 
 # Compare models using cross-validated RMSE
 resamp <- resamples(list(
+  pls = pls_fit,
+  pcr = pcr_fit,
+  elastic_net = enet_fit,
   mars = mars.fit,
   gam = gam.fit))
 
@@ -611,4 +612,12 @@ bwplot(resamp, metric = "RMSE")
 
 ```
 
+```{r}
+class(pls_fit)
+class(pcr_fit)
+class(enet_fit)
+class(mars.fit)
+class(gam.fit)
+
+```
 
