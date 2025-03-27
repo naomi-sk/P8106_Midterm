@@ -34,6 +34,10 @@ library(corrplot)
 library(mgcv)
 library(tidymodels)
 library(earth)
+library(boot) 
+library(table1)
+library(knitr)
+library(pls)
 
 
 ## Data Preparation
@@ -46,6 +50,26 @@ training_data <- dat1
 load("dat2.RData") 
 testing_data <- dat2
 
+# Convert categorical variables to factor with meaningful labels
+training_data <- training_data %>%
+  mutate(gender = factor(gender, 
+                         levels = c(0, 1), 
+                         labels = c("Female", "Male")), 
+    race = factor(as.character(race), 
+                  levels = c("1", "2", "3", "4"), 
+                  labels = c("White", "Asian", "Black", "Hispanic")),
+    smoking = factor(as.character(smoking), levels = c("0", "1", "2"), 
+                     labels = c("Never", "Former", "Current")),
+    diabetes = factor(diabetes, 
+                      levels = c(0, 1), 
+                      labels = c("No", "Yes")),
+    hypertension = factor(hypertension, 
+                          levels = c(0, 1), 
+                          labels = c("No", "Yes")))
+
+# Check structure of dataset
+str(training_data)
+                          
 # Set seed for reproducibility
 set.seed(299)
 
@@ -67,7 +91,7 @@ This study aims to build a prediction model for antibody responses to a newly au
 ## 1.2. Data Source and Description
 
 The primary dataset (**dat1.RData**) contains demographic and clinical information from participants in a vaccine response study. Variables include age, gender, race/ethnicity, body mass index (BMI), blood pressure, cholesterol levels, diabetes, hypertension, and time since vaccination (in days). The outcome of interest is the log-transformed antibody level, measured using dried blood spot samples. The dataset consists of records from 5000 participants with 13 variables, excluding the unique identifier variable.
-A second independent dataset (**dat2.RData**) with identical structure was collected several months later to assess model generalizability. The dataset consists of records from 1000 participants.
+A second independent dataset (**dat2.RData**) with identical structure was collected several months later to assess model generalizability. The second dataset consists of records from 1000 participants.
 
 # 2. Exploratory Analysis
 
@@ -89,6 +113,16 @@ A second independent dataset (**dat2.RData**) with identical structure was colle
 
 ```{r}
 
+## Correlation Plot
+
+# Matrix of predictors 
+x <- model.matrix(log_antibody ~ ., training_data)[, -1]
+
+# Vector of response
+y <- training_data$log_antibody
+
+# Produce corrplot
+corrplot::corrplot(cor(x), method = 'circle', type = 'full')
 
 ```
 
@@ -129,13 +163,85 @@ For model training and evaluation, we implemented 10-fold cross-validation on th
 
 ### 3.3.3. MARS
 
+MARS was selected for this antibody response dataset because it effectively captures threshold effects in immune responses that often occur at specific BMI values or time points after vaccination. Its ability to automatically detect important predictors and their interactions made it suitable for our dataset’s combination of demographic and clinical variables.
+For model tuning, we initially specified a grid with degrees 1 to 3 (maximum number of interactions) and 2 to 15 retained terms, then expanded to degrees 1 to 4 and 2 to 20 retained terms to evaluate whether higher-order interactions might better capture complex relationships between variables. Cross-validation results showed that models with degree = 1 consistently achieved the lowest RMSE. As interaction degree increased, RMSE values became more variable rather than decreasing steadily, suggesting no gain in prediction accuracy. The range of retained terms appeared appropriate as RMSE decreased initially with more terms but then plateaued. The final MARS model (degree = 1, 9 retained terms) was able to represent nonlinear relationships through key hinge functions at specific threshold values.
+
 ```{r}
+
+# Set seed for reproducibility
+set.seed(299)
+
+# Specify MARS grid - first attempt 
+# mars_grid <- expand.grid(
+#  degree = 1:3, # degree of interactions
+#  nprune = 2:15  # no. of retained terms
+# )
+
+# MARS tuning grid - expanding grid 
+mars_grid <- expand.grid(
+  degree = 1:4,     # interaction degrees
+  nprune = 2:20     # number of terms
+)
+
+# Train MARS model to predict log_antibody
+mars.fit <- train(log_antibody ~ .,
+                  data = training_data,
+                  method = "earth",
+                  tuneGrid = mars_grid,
+                  trControl = ctrl1)
+
+# Plot CV performance
+ggplot(mars.fit)
+
+
+# Optimal parameters
+mars.fit$bestTune
+
+# Final model coefficients
+mars_coef <- coef(mars.fit$finalModel)
+
+mars_coef
 
 ```
 
 ### 3.3.4. GAM
 
+GAM was selected because immune responses typically follow smooth, nonlinear patterns that change gradually with predictors like age, BMI, and time since vaccination. GAM’s ability to model these relationships as flexible smooth functions while also being interpretable made it an appropriate candidate model to examine how each predictor independently contributes to antibody levels.
+Our analysis showed that some predictors have estimated degrees of freedom (edf) greater than 1, specifically height (edf = 2.272), BMI (edf = 5.032), and time (edf = 7.835), indicating nonlinear smooth functions. Other predictors appear approximately linear (edf ≈ 1), including weight, SBP, and LDL. 
+Among the nonlinear terms, BMI and time are highly significant (p < 2e-16), suggesting meaningful nonlinear associations with antibody levels. However, not all nonlinear terms with edf > 1 are statistically significant; height has an edf of 2.272 but a non-significant p-value (p = 0.3736). SBP showed a significant linear relationship (edf = 1.00, p = 0.0182) and was the only significant linear term in the model.
+
 ```{r}
+
+# Set seed for reproducibility
+set.seed(299)
+
+# Fit a GAM model, using training data
+gam_antibody <- gam(log_antibody ~ gender + race + smoking +
+                      s(height) + s(weight) + s(bmi) +
+                      diabetes + hypertension + s(SBP) + 
+                      s(LDL) + s(time), 
+                    data = training_data)
+
+# Summary
+summary(gam_antibody)
+
+# Plot GAM 
+plot(gam_antibody)
+
+
+# Use train() to fit GAM Model
+
+gam.fit <- train(
+  log_antibody ~ gender + race + smoking +
+    height + weight + bmi +
+    diabetes + hypertension + SBP + 
+    LDL + time,
+  data = training_data,
+  method = "gam",
+  trControl = ctrl1
+)
+
+summary(gam.fit)
 
 ```
 

@@ -20,8 +20,6 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ```{r}
 
-install.packages("corrplot")
-
 # Load libraries
 library(tidyverse)
 library(caret)
