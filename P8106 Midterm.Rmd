@@ -280,27 +280,10 @@ ncomp_cv <- which.min(cv_mse$val[1,,]) - 1
 ncomp_cv
 ```
 
-```{r}
-# calculate test MSE
-y2 = testing_data$log_antibody
-
-predy2_pcr <- predict(pcr_mod, newdata = testing_data,
-ncomp = ncomp_cv)
-mean((y2 - predy2_pcr)^2)
-```
-The PCR MSE is 0.3592698
-
 
 
 
 ##PCR using caret
-```{r}
-x <- model.matrix(log_antibody ~ ., training_data)
-y <- training_data$log_antibody
-
-x2 <- model.matrix(log_antibody ~ .,testing_data)
-y2 <- testing_data$log_antibody
-```
 
 ```{r}
 set.seed(299)
@@ -312,23 +295,6 @@ preProcess = c("center", "scale"))
 ```
 
 ```{r}
-predy2_pcr2 <- predict(pcr_fit, newdata = x2)
-mean((y2 - predy2_pcr2)^2)
-```
-
-```{r}
-set.seed(299)
-pcr_fit2 <- train(x, y,
-method = "pcr",
-tuneGrid = data.frame(ncomp = 1:16),
-trControl = ctrl1,
-scale = TRUE)
-
-predy2_pcr3 <- predict(pcr_fit2, newdata = x2)
-mean((y2 - predy2_pcr3)^2)
-```
-
-```{r}
 ggplot(pcr_fit, highlight = TRUE) + theme_bw()
 ```
 
@@ -336,22 +302,6 @@ We fit the PCR model using the function pcr(). PCR and PLS models are good for a
 multicollinearity by maximizing the variance of predictor variables. 
 
 ##PLS using caret 
-```{r}
-set.seed(299)
-pls_fit <- train(x, y,
-method = "pls",
-tuneGrid = data.frame(ncomp = 1:16),
-trControl = ctrl1,
-preProcess = c("center", "scale"))
-predy2_pls2 <- predict(pls_fit, newdata = x2)
-mean((y2 - predy2_pls2)^2)
-```
-
-```{r}
-ggplot(pls_fit, highlight = TRUE)
-```
-
-
 
 #PLS
 ```{r}
@@ -375,12 +325,6 @@ ncomp_cv <- which.min(cv_mse$val[1,,]) - 1
 ncomp_cv
 ```
 
-```{r}
-# calculate test MSE
-predy2_pls <- predict(pls_mod, newdata = testing_data,
-ncomp = ncomp_cv)
-mean((y2 - predy2_pls)^2)
-```
 We fit the PLS model using the function plsr(). This method uses a small number of 
 the original inputs and considers out outcome, log antibody levels, making it more
 predictive over PCR potentially. 
