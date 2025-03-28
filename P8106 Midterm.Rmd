@@ -92,6 +92,9 @@ corrplot::corrplot(cor(x), method = 'circle', type = 'full')
 
 ```
 
+Looking at the correlation plot we see a few predictors are correlated, for example weight and bmi and height and bmi seem to have a decently strong correlation. SBP and hypertension also have correlation. These correlations make sense as BMI uses height and weight to calculate the score, and SBP and hypertension status are linked. Keeping in mind that these correlations among predictors may cause multicollinearity we should consider regularization techniques (lasso/ridge penalties) in our models. 
+
+
 ## Exploratory Analysis
 
 ```{r}
@@ -230,19 +233,12 @@ lm.fit <- train(log_antibody ~ .,
                 method = "lm", 
                 trControl = ctrl1)
 
-# Make predictions
-lm.pred <- predict(lm.fit, newdata = testing_data)
-
-# Calculate lm RMSE 
-lm_rmse <- RMSE(lm.pred, testing_data$log_antibody)
-lm_rmse
-
 # model summary
 summary_model <- summary(lm.fit$finalModel)
 print(summary_model)
 
 ```
-The first model we test is a simple linear model. Looking at the pdp plots none of the variables seem to show a linear trend indicating that a simple linear model is not going to be the best model and there may be more complexities.
+The first model we will try is multiple linear regression. This strength of this model lays in its simplicity and interpretability, so if later we find it performs the best it would be the ideal choice. However, from our EDA earlier we already have an idea that a linear model may not be the best since none of the pdps show a clear linear trend implying there may be more complexities to consider. Also, as shown in our correlation matrix, there may be correlation among predictors (e.g. height/weight and bmi) which we may want to consider through use of more complex models that have regularization penalities. The summary shows us the significant predictors in our multiple linear regression are age, gender, smoking status, height, weight and bmi. 
 
 
 
