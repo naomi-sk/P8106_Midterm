@@ -42,11 +42,23 @@ library(pls)
 
 # Load training data
 load("dat1.RData") 
-training_data <- dat1
+dat1 <- dat1
 
 # Load test data (dat2)
 load("dat2.RData") 
-testing_data <- dat2
+dat2 <- dat2
+
+# Set seed for reproducibility
+set.seed(299)
+
+data_split <- initial_split(dat1, prop = 0.8)
+
+# Set 10-fold cross-validation
+ctrl1 <- trainControl(method = "cv", number = 10)
+
+# Remove non-predictor variables
+training_data <- training(data_split) %>% select(-id) # remove ID variable 
+testing_data <- testing(data_split) %>% select(-id) # remove ID variable 
 
 # Convert categorical variables to factor with meaningful labels
 training_data <- training_data %>%
@@ -65,35 +77,26 @@ training_data <- training_data %>%
                           levels = c(0, 1), 
                           labels = c("No", "Yes")))
 
+dat2 <- dat2 %>%
+  mutate(gender = factor(gender, 
+                         levels = c(0, 1), 
+                         labels = c("Female", "Male")), 
+    race = factor(as.character(race), 
+                  levels = c("1", "2", "3", "4"), 
+                  labels = c("White", "Asian", "Black", "Hispanic")),
+    smoking = factor(as.character(smoking), levels = c("0", "1", "2"), 
+                     labels = c("Never", "Former", "Current")),
+    diabetes = factor(diabetes, 
+                      levels = c(0, 1), 
+                      labels = c("No", "Yes")),
+    hypertension = factor(hypertension, 
+                          levels = c(0, 1), 
+                          labels = c("No", "Yes")))
+
 # Check structure of dataset
 str(training_data)
-                          
-# Set seed for reproducibility
-set.seed(299)
-
-# Set 10-fold cross-validation
-ctrl1 <- trainControl(method = "cv", number = 10)
-
-# Remove non-predictor variables
-training_data <- training_data %>% select(-id) # remove ID variable 
-testing_data <- testing_data %>% select(-id) # remove ID variable 
-
-
-## Correlation Plot
-
-# Matrix of predictors 
-x <- model.matrix(log_antibody ~ ., training_data)[, -1]
-
-# Vector of response
-y <- training_data$log_antibody
-
-# Produce corrplot
-corrplot::corrplot(cor(x), method = 'circle', type = 'full')
 
 ```
-
-Looking at the correlation plot we see a few predictors are correlated, for example weight and bmi and height and bmi seem to have a decently strong correlation. SBP and hypertension also have correlation. These correlations make sense as BMI uses height and weight to calculate the score, and SBP and hypertension status are linked. Keeping in mind that these correlations among predictors may cause multicollinearity we should consider regularization techniques (lasso/ridge penalties) in our models. 
-
 
 ## Exploratory Analysis
 
@@ -185,8 +188,20 @@ p5 <- ggplot(training_data, aes(x = factor(hypertension), y = log_antibody)) +
 # Using patchwork
 ((p1 + p2) / (p3 + p4) / (p5 + plot_spacer())) 
 
+## Correlation Plot
+
+# Matrix of predictors 
+x <- model.matrix(log_antibody ~ ., training_data)[, -1]
+
+# Vector of response
+y <- training_data$log_antibody
+
+# Produce corrplot
+corrplot::corrplot(cor(x), method = 'circle', type = 'full')
 
 ```
+
+Looking at the correlation plot we see a few predictors are correlated, for example weight and bmi and height and bmi seem to have a decently strong correlation. SBP and hypertension also have correlation. These correlations make sense as BMI uses height and weight to calculate the score, and SBP and hypertension status are linked. Keeping in mind that these correlations among predictors may cause multicollinearity we should consider regularization techniques (lasso/ridge penalties) in our models. 
 
 
 ```{r table1}
@@ -219,7 +234,7 @@ Based on the exploratory analysis of continuous predictors, time since vaccinati
 
 # Model Selection
 
-## Linear Regression - Ila
+## Linear Regression
 ```{r}
 # Set seed for reproducibility
 set.seed(299)
@@ -244,19 +259,36 @@ The first model we will try is multiple linear regression. This strength of this
 
 
 
-#Elastic Net - Shayne 
+#Elastic Net
 ```{r}
 set.seed(299)
 enet_fit <- train(log_antibody ~ ., data = training_data, method = "glmnet",
             tuneGrid = expand.grid(alpha = seq(0, 1, length = 21),
-            lambda = exp(seq(4, -2, length = 100))),
+            lambda = exp(seq(-3, 3, length = 100))),
             trControl = ctrl1)
+
+enet_fit$bestTune
+
+# Checking to see if it is in the grid or not
+best_lambda <- enet_fit$bestTune$lambda
+lambda_range <- range(enet_fit$results$lambda)
+
+print(best_lambda)
+print(format(lambda_range, scientific = FALSE))
+
+myCol <- rainbow(25)
+myPar <- list(superpose.symbol = list(col = myCol),
+              superpose.line = list(col = myCol))
+
+plot(enet_fit, par.settings = myPar)
 ```
 
 ```{r}
-enet_fit$resample
+plot(enet_fit, xvar = "lambda", label = TRUE)
 ```
 
+*add justification for grid --> tried a range of lambda values and the lambda was at the lower
+range of the grid...The optimal lambda was found to be at the lower bound 
 The r-squared value is relatively low, thus providing evidence that this may not be a great model. 
 
 #PCR
@@ -330,18 +362,6 @@ the original inputs and considers out outcome, log antibody levels, making it mo
 predictive over PCR potentially. 
 
 
-
-
-```{r}
-set.seed(299)
-enet_fit <- train(log_antibody ~ .,
-data = training_data,
-method = "glmnet",
-tuneGrid = expand.grid(alpha = seq(0, 1, length = 21),
-lambda = exp(seq(6, 0, length = 100))),
-trControl = ctrl1)
-```
-
 We fit an elastic net model using the train() with method = "glmnet" function. Elastic
 net models are good for effectively dealing with highly correlated groups of predictors. 
 
@@ -355,11 +375,6 @@ summary(resamp)
 ```{r}
 bwplot(resamp, metric = "RMSE")
 ```
-
-
-
-
-
 
 
 ## MARS - Naomi
@@ -410,49 +425,6 @@ In other words, cross-validation results showed that a model with approximately 
 **Optimal parameters and final model coefficients**
 The best-tuned model selected `degree = 1` and `nprune = 9`. Therefore, the final model includes 9 retained terms with no interaction effects.
 
-Next, obtaining the test error:
-
-```{r}
-
-# Set seed for reproducibility
-set.seed(299)
-
-# Obtain response variable from testing data
-y_testing <- testing_data$log_antibody
-
-# Predict on test data using trained MARS model
-y_pred_MARS <- predict(mars.fit, newdata = testing_data)
-
-# Compute RMSE (Test Error)
-test_rmse_mars <- sqrt(mean((y_testing - y_pred_MARS)^2))
-
-# Print test RMSE
-test_rmse_mars
-
-```
-
-Therefore, the test error (RMSE) is `0.5327718`.
-
-Next, obtaining the training error:
-
-```{r}
-
-# Set seed for reproducibility
-set.seed(299)
-
-# Predict on training data using MARS model
-y_pred_mars_train <- predict(mars.fit, newdata = training_data)
-
-# Compute Training RMSE for MARS Model
-train_rmse_mars <- sqrt(mean((training_data$log_antibody - y_pred_mars_train)^2))
-
-# Print Training RMSE
-print(train_rmse_mars)
-
-```
-
-Therefore, the training error (RMSE) is **0.5261998**.
-
 ## GAM - Naomi
 
 I will proceed with constructing a GAM model, allowing us to mix non-linear and linear terms and build a model estimating the relationship between the outcome (`log_antibody`) and predictors in the provided dataset.
@@ -480,8 +452,8 @@ plot(gam_antibody)
 
 gam.fit <- train(
   log_antibody ~ gender + race + smoking +
-    height + weight + bmi +
-    diabetes + hypertension + SBP + 
+    height + weight + bmi + diabetes + 
+    hypertension + SBP + 
     LDL + time,
   data = training_data,
   method = "gam",
@@ -501,26 +473,6 @@ summary(gam.fit)
 * However, not all nonlinear terms with edf > 1 are statistically significant. i.e, height has an edf of 2.272 but a non-significant p-value (p = 0.3736).
 
 * SBP is a linear term (edf = 1.00) and also statistically significant (p = 0.0182), suggesting a meaningful linear relationship. It is the only linear term that is statistically significant. 
-
-Next, obtaining the training error:
-
-```{r}
-
-# Note I have not done test error
-# Set seed for reproducibility
-set.seed(299)
-
-# Prediction using training data
-y_train_pred_gam <- predict(gam_antibody, newdata = training_data)
-
-# Training RMSE
-train_rmse_gam <- sqrt(mean((training_data$log_antibody - y_train_pred_gam)^2))
-
-print(train_rmse_gam)
-
-```
-
-Therefore, the training set error (RMSE) is **0.5312249**.
 
 
 # Code for Comparison/Model selection
@@ -544,12 +496,45 @@ bwplot(resamp, metric = "RMSE")
 
 ```
 
-```{r}
-class(pls_fit)
-class(pcr_fit)
-class(enet_fit)
-class(mars.fit)
-class(gam.fit)
+MARS has the smallest RMSE, so we will try to apply this model to dat2. 
 
+```{r}
+set.seed(299)
+mars.pred <- predict(mars.fit, newdata = dat2)
+```
+
+```{r}
+set.seed(299)
+mars_rmse <- sqrt(mean((y2 - mars.pred)^2))
+mars_rmse
+```
+
+
+```{r}
+predy2_pcr2 <- predict(mars.fit, newdata = dat2)
+mean((y2 - predy2_pcr2)^2)
+```
+
+
+
+
+```{r}
+#Next, obtaining the test error:
+
+
+# Set seed for reproducibility
+set.seed(299)
+
+# Obtain response variable from testing data
+y_testing <- dat2$log_antibody
+
+# Predict on test data using trained MARS model
+y_pred_MARS <- predict(mars.fit, newdata = dat2)
+
+# Compute RMSE (Test Error)
+test_rmse_mars <- sqrt(mean((y_testing - y_pred_MARS)^2))
+
+# Print test RMSE
+test_rmse_mars
 ```
 
