@@ -427,23 +427,22 @@ I will proceed with constructing a GAM model, allowing us to mix non-linear and 
 set.seed(299)
 
 # Fit a GAM model, using training data
-gam_antibody <- gam(log_antibody ~ gender + race + smoking +
+gam_antibody <- gam(log_antibody ~ gender + race + 
+                      smoking + s(age) +
                       s(height) + s(weight) + s(bmi) +
                       diabetes + hypertension + s(SBP) + 
                       s(LDL) + s(time), 
                     data = training_data)
 
-# Summary
-summary(gam_antibody)
-
-# Plot GAM 
+# Plot GAM predictors
 plot(gam_antibody)
 
 
-# Use train() to fit GAM Model
+# Use train() from caret to fit GAM Model
 
 gam.fit <- train(
-  log_antibody ~ gender + race + smoking +
+  log_antibody ~ gender + race + 
+    smoking + age +
     height + weight + bmi + diabetes + 
     hypertension + SBP + 
     LDL + time,
@@ -452,15 +451,17 @@ gam.fit <- train(
   trControl = ctrl1
 )
 
-summary(gam.fit)
+# Predictor EDF values from mgcv fitted GAM model
+summary(gam_antibody)
 
 ```
 
-* Some of the predictors have estimated degrees of freedom (edf) greater than 1 — specifically height, BMI, SBP, and time — indicating that they are nonlinear smooth functions. This is supported by the GAM predictor plots. Weight, while slightly above 1, was not statistically significant and does not show strong evidence of nonlinearity.
+* Some predictors have estimated degrees of freedom (edf) greater than 1, specifically height, weight, BMI, and time,  indicating they are modeled as nonlinear smooth functions. This is supported by the GAM predictor plots. Weight, while slightly above 1, was not statistically significant, and does not show strong evidence of nonlinearity.
 
-* LDL had an EDF < 1 (EDF = 0.55), indicating that the term was heavily penalized and shrunk toward zero. This indicates LDL contributed very little to the model, with a negligible effect on the outcome. The corresponding predictor plot supports this interpretation.
+* Age, SBP, and LDL each have an edf of exactly 1.00, indicating that they are modeled as approximately linear. Of these, only age was statistically significant (p < 2e-16), suggesting a strong linear association with log antibody levels.
 
-* Among the nonlinear terms, SBP, BMI, time, and height are significant (p < 0.05), suggesting meaningful nonlinear associations with the log antibody levels.
+* Among the nonlinear terms, height, BMI, and time were statistically significant (p < 0.05), indicating meaningful nonlinear relationships with the outcome.
+
 
 # Comparison/Model selection
 
