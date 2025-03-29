@@ -24,33 +24,30 @@ knitr::opts_chunk$set(
 
 ```{r}
 
-## Load Libraries
-
-library(tidyverse)
-library(caret)
-library(ggplot2)  
-library(patchwork)
-library(corrplot)
-library(mgcv)
-library(tidymodels)
-library(earth)
-library(boot) 
-library(table1)
-library(knitr)
-library(pls)
-
-
-## Data Preparation
+## DATA CLEANING AND PREPARATION
 
 # Load training data
 load("dat1.RData") 
-training_data <- dat1
+dat1 <- dat1
 
 # Load test data (dat2)
 load("dat2.RData") 
-testing_data <- dat2
+dat2 <- dat2
 
-# Convert categorical variables to factor with meaningful labels
+# Set seed for reproducibility
+set.seed(299)
+
+data_split <- initial_split(dat1, prop = 0.8)
+
+# Set 10-fold cross-validation
+ctrl1 <- trainControl(method = "cv", number = 10)
+
+# Remove non-predictor variables
+training_data <- training(data_split) %>% select(-id) # remove ID variable 
+testing_data <- testing(data_split) %>% select(-id) # remove ID variable 
+dat2 <- dat2 %>% select(-id) # remove ID variable 
+
+# Convert categorical variables to factor: Training Data
 training_data <- training_data %>%
   mutate(gender = factor(gender, 
                          levels = c(0, 1), 
@@ -67,18 +64,40 @@ training_data <- training_data %>%
                           levels = c(0, 1), 
                           labels = c("No", "Yes")))
 
-# Check structure of dataset
-str(training_data)
-                          
-# Set seed for reproducibility
-set.seed(299)
+# Convert categorical variables to factor: Testing Data
+testing_data <- testing_data %>%
+  mutate(gender = factor(gender, 
+                         levels = c(0, 1), 
+                         labels = c("Female", "Male")), 
+    race = factor(as.character(race), 
+                  levels = c("1", "2", "3", "4"), 
+                  labels = c("White", "Asian", "Black", "Hispanic")),
+    smoking = factor(as.character(smoking), levels = c("0", "1", "2"), 
+                     labels = c("Never", "Former", "Current")),
+    diabetes = factor(diabetes, 
+                      levels = c(0, 1), 
+                      labels = c("No", "Yes")),
+    hypertension = factor(hypertension, 
+                          levels = c(0, 1), 
+                          labels = c("No", "Yes")))
 
-# Set 10-fold cross-validation
-ctrl1 <- trainControl(method = "cv", number = 10)
+# Convert categorical variables to factor: Dat2
 
-# Remove non-predictor variables
-training_data <- training_data %>% select(-id) # remove ID variable 
-testing_data <- testing_data %>% select(-id) # remove ID variable 
+dat2 <- dat2 %>%
+  mutate(gender = factor(gender, 
+                         levels = c(0, 1), 
+                         labels = c("Female", "Male")), 
+    race = factor(as.character(race), 
+                  levels = c("1", "2", "3", "4"), 
+                  labels = c("White", "Asian", "Black", "Hispanic")),
+    smoking = factor(as.character(smoking), levels = c("0", "1", "2"), 
+                     labels = c("Never", "Former", "Current")),
+    diabetes = factor(diabetes, 
+                      levels = c(0, 1), 
+                      labels = c("No", "Yes")),
+    hypertension = factor(hypertension, 
+                          levels = c(0, 1), 
+                          labels = c("No", "Yes")))
 
 ```
 
@@ -163,8 +182,9 @@ For model training and evaluation, we implemented 10-fold cross-validation on th
 
 ### 3.3.3. MARS
 
-MARS was selected for this antibody response dataset because it effectively captures threshold effects in immune responses that often occur at specific BMI values or time points after vaccination. Its ability to automatically detect important predictors and their interactions made it suitable for our dataset’s combination of demographic and clinical variables.
-For model tuning, we initially specified a grid with degrees 1 to 3 (maximum number of interactions) and 2 to 15 retained terms, then expanded to degrees 1 to 4 and 2 to 20 retained terms to evaluate whether higher-order interactions might better capture complex relationships between variables. Cross-validation results showed that models with degree = 1 consistently achieved the lowest RMSE. As interaction degree increased, RMSE values became more variable rather than decreasing steadily, suggesting no gain in prediction accuracy. The range of retained terms appeared appropriate as RMSE decreased initially with more terms but then plateaued. The final MARS model (degree = 1, 9 retained terms) was able to represent nonlinear relationships through key hinge functions at specific threshold values.
+MARS was selected as a candidate model as its ability to automatically detect important predictors and their interactions made it suitable for our dataset’s combination of demographic and clinical variables.
+
+For model tuning, we initially specified a grid with degrees 1 to 3 (maximum number of interactions) and 2 to 15 retained terms, then expanded to degrees 1 to 4 and 2 to 20 retained terms to evaluate whether higher-order interactions might better capture complex relationships between variables. Cross-validation results showed that models with degree = 1 consistently achieved the lowest RMSE. As interaction degree increased, RMSE values became more variable rather than decreasing steadily, suggesting no gain in prediction accuracy. The range of retained terms appeared appropriate as RMSE decreased initially with more terms but then plateaued. The final MARS model (**degree = 1, 10 retained terms**) was able to represent nonlinear relationships through hinge functions at specific threshold values.
 
 ```{r}
 
@@ -200,15 +220,14 @@ mars.fit$bestTune
 # Final model coefficients
 mars_coef <- coef(mars.fit$finalModel)
 
-mars_coef
-
 ```
 
 ### 3.3.4. GAM
 
 GAM was selected because immune responses typically follow smooth, nonlinear patterns that change gradually with predictors like age, BMI, and time since vaccination. GAM’s ability to model these relationships as flexible smooth functions while also being interpretable made it an appropriate candidate model to examine how each predictor independently contributes to antibody levels.
-Our analysis showed that some predictors have estimated degrees of freedom (edf) greater than 1, specifically height (edf = 2.272), BMI (edf = 5.032), and time (edf = 7.835), indicating nonlinear smooth functions. Other predictors appear approximately linear (edf ≈ 1), including weight, SBP, and LDL. 
-Among the nonlinear terms, BMI and time are highly significant (p < 2e-16), suggesting meaningful nonlinear associations with antibody levels. However, not all nonlinear terms with edf > 1 are statistically significant; height has an edf of 2.272 but a non-significant p-value (p = 0.3736). SBP showed a significant linear relationship (edf = 1.00, p = 0.0182) and was the only significant linear term in the model.
+Our analysis showed that some predictors have estimated degrees of freedom (edf) greater than 1, specifically height (edf=3.163), weight (edf=1.255), BMI (edf=4.700), and time (edf=7.665), indicating they are modeled as nonlinear smooth functions. This is supported by the GAM predictor plots. Weight, while slightly above 1, was not statistically significant.
+Among the nonlinear terms, height, BMI, and time were statistically significant (p < 0.05), indicating meaningful nonlinear relationships with the outcome.
+Predictors age, SBP, and LDL each have an edf of 1.00, indicating that they are modeled as approximately linear. Of these, only age was statistically significant (p < 2e-16), suggesting a strong linear association with log antibody levels. 
 
 ```{r}
 
@@ -216,32 +235,34 @@ Among the nonlinear terms, BMI and time are highly significant (p < 2e-16), sugg
 set.seed(299)
 
 # Fit a GAM model, using training data
-gam_antibody <- gam(log_antibody ~ gender + race + smoking +
+gam_antibody <- gam(log_antibody ~ gender + race + 
+                      smoking + s(age) +
                       s(height) + s(weight) + s(bmi) +
                       diabetes + hypertension + s(SBP) + 
                       s(LDL) + s(time), 
                     data = training_data)
 
-# Summary
-summary(gam_antibody)
-
-# Plot GAM 
+# Plot smooth GAM terms
+# Code source: https://bookdown.org/ndphillips/YaRrr/arranging-plots-with-parmfrow-and-layout.html
+par(mfrow = c(3, 2))  
 plot(gam_antibody)
+par(mfrow = c(1, 1)) # Reset plotting window
 
 
-# Use train() to fit GAM Model
-
+# Use train() from caret to fit GAM Model
 gam.fit <- train(
-  log_antibody ~ gender + race + smoking +
-    height + weight + bmi +
-    diabetes + hypertension + SBP + 
+  log_antibody ~ gender + race + 
+    smoking + age +
+    height + weight + bmi + diabetes + 
+    hypertension + SBP + 
     LDL + time,
   data = training_data,
   method = "gam",
   trControl = ctrl1
 )
 
-summary(gam.fit)
+# Predictor EDF values from mgcv fitted GAM model
+summary(gam_antibody)
 
 ```
 
@@ -251,6 +272,7 @@ summary(gam.fit)
 
 
 ```{r}
+
 
 ```
 
@@ -271,9 +293,9 @@ Test set performance metrics & interpretation
 
 ```
 
-## 4.3. Interpretation
+## 4.3. Model Generalizability
 
-i.e., summary of model results
+Evaluation of model based on dat2.
 
 ```{r}
 
@@ -288,11 +310,7 @@ i.e., summary of model results
 
 # 6. References
 
-If relevant
-
-```{r}
-
-```
+Phillips, N. D. (n.d.). YaRrr! The Pirate's Guide to R. Retrieved March 29, 2025, from https://bookdown.org/ndphillips/YaRrr/arranging-plots-with-parmfrow-and-layout.html
 
 # 7. Appendices
 

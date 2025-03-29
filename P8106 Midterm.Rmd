@@ -454,8 +454,11 @@ gam_antibody <- gam(log_antibody ~ gender + race +
                       s(LDL) + s(time), 
                     data = training_data)
 
-# Plot GAM predictors
+# Plot smooth GAM terms
+# Code source: https://bookdown.org/ndphillips/YaRrr/arranging-plots-with-parmfrow-and-layout.html
+par(mfrow = c(3, 2))  
 plot(gam_antibody)
+par(mfrow = c(1, 1)) # Reset plotting window
 
 
 # Use train() from caret to fit GAM Model
@@ -501,6 +504,14 @@ summary(resamp)
 
 # Plot RMSE comparison
 bwplot(resamp, metric = "RMSE")
+
+# Show in table format
+knitr::kable(
+  tibble::rownames_to_column(
+    data.frame("Mean RMSE" = round(summary(resamp)$statistics$RMSE[, "Mean"], 5),
+               check.names = FALSE),
+    var = "Model"), 
+  caption = "Mean RMSE for Each Model (10-fold CV)")
 
 ```
 
@@ -549,7 +560,6 @@ test_rmse <- sqrt(mean((y_testing_DAT2 - y_pred_DAT2)^2))
 
 # Print test RMSE
 test_rmse
-
 
 ```
 
