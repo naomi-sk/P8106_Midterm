@@ -469,6 +469,7 @@ summary(gam_antibody)
 
 # Compare models using cross-validated RMSE
 resamp <- resamples(list(
+  linear = lm.fit,
   pls = pls_fit,
   pcr = pcr_fit,
   elastic_net = enet_fit,
@@ -483,7 +484,7 @@ bwplot(resamp, metric = "RMSE")
 
 ```
 
-MARS has the smallest RMSE, so we will try to apply this model to dat2. 
+MARS has the smallest mean RMSE (`0.5284505`), so we will try to apply this model to dat2. 
 
 # Test Error for Selected Model Applied to New Dataset: MARS
 
