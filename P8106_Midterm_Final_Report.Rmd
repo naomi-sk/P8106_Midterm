@@ -259,9 +259,9 @@ gam_antibody <- gam(log_antibody ~ gender + race +
 
 # Plot smooth GAM terms
 # Code source: https://bookdown.org/ndphillips/YaRrr/arranging-plots-with-parmfrow-and-layout.html
-par(mfrow = c(3, 2))  
+par(mfcol = c(3, 4))  
 plot(gam_antibody)
-par(mfrow = c(1, 1)) # Reset plotting window
+par(mfcol = c(1, 1))  # Reset
 
 
 # Use train() from caret to fit GAM Model
