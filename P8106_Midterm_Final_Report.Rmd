@@ -124,26 +124,128 @@ This study aims to build a prediction model for antibody responses to a newly au
 
 ## 1.2. Data Source and Description
 
-The primary dataset (**dat1.RData**) contains demographic and clinical information from participants in a vaccine response study. Variables include age, gender, race/ethnicity, body mass index (BMI), blood pressure, cholesterol levels, diabetes, hypertension, and time since vaccination (in days). The outcome of interest is the log-transformed antibody level, measured using dried blood spot samples. The dataset consists of records from 5000 participants with 13 variables, excluding the unique identifier variable.
+The primary dataset (**dat1.RData**) contains demographic and clinical information from 5000 participants in a vaccine response study. Variables include age, gender, race/ethnicity, body mass index (BMI), blood pressure, cholesterol levels, diabetes, hypertension, and time since vaccination (in days). The outcome of interest is the log-transformed antibody level, measured using dried blood spot samples.
 A second independent dataset (**dat2.RData**) with identical structure was collected several months later to assess model generalizability. The second dataset consists of records from 1000 participants.
 
 # 2. Exploratory Analysis
 
-## 2.1. Dataset Overview
+Before building our model, we examined various tables and visualizations of dat1 to identify trends, outliers, and any variables that may need transformation.
+
+## 2.1. Table 1 Summary Statistics
 
 ```{r}
 
 
 ```
 
-## 2.2. Summary Statistics
+## 2.2. Exploratory Plots
+
+### 2.2.1 Feature Plots
+First, we assessed the relationships between continuous variables (age, height, weight, BMI, SBP, LDL, time) using feature plots. The scatterplots showed no clear linear relationships among most variables, and no obvious patterns of heteroscedasticity were observed.
 
 ```{r}
+## Set the plotting theme
+theme1 <- trellis.par.get()
+theme1$plot.symbol$col <- rgb(.2, .4, .2, .5)
+theme1$plot.symbol$pch <- 16
+theme1$plot.line$col <- rgb(.8, .1, .1, 1)
+theme1$plot.line$lwd <- 2
+theme1$strip.background$col <- rgb(.0, .2, .6, .2)
+trellis.par.set(theme1)
 
+## Feature Plots for numeric predictors (L2)
+featurePlot(
+  x = training_data[, c("age", "height", "weight", "bmi", "SBP", "LDL", "time")],
+  y = training_data$log_antibody,
+  plot = "scatter",
+  span = 0.5,
+  labels = c("Predictors", "Log Antibody"),
+  type = c("p", "smooth"),
+  layout = c(3, 2)
+)
 
 ```
+
+### 2.2.2 Histograms
+To assess normality, we examined histograms for each continuous variable. Most followed an approximately normal distribution, though "time since vaccination" displayed slight right-skewness.
+
+```{r}
+## Histograms for numeric predictors
+
+# Age histogram
+h1 <- ggplot(training_data, aes(x = age)) +
+  geom_histogram(binwidth = 1, color = "darkblue", fill = "lightblue") +
+  ggtitle("Age Distribution") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# BMI histogram
+h2 <- ggplot(training_data, aes(x = bmi)) +
+  geom_histogram(binwidth = 1, color = "darkblue", fill = "lightblue") +
+  ggtitle("BMI") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# SBP histogram
+h3 <- ggplot(training_data, aes(x = SBP)) +
+  geom_histogram(binwidth = 2, color = "darkblue", fill = "lightblue") +
+  ggtitle("Systolic") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# LDL histogram
+h4 <- ggplot(training_data, aes(x = LDL)) +
+  geom_histogram(binwidth = 5, color = "darkblue", fill = "lightblue") +
+  ggtitle("LDL") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Time since vaccination histogram
+h5 <- ggplot(training_data, aes(x = time)) +
+  geom_histogram(binwidth = 5, color = "darkblue", fill = "lightblue") +
+  ggtitle("Time Since Vaccination") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Combine using patchwork
+(h1 + h2) / (h3 + h4) / (h5 + plot_spacer())
+
+```
+
+### 2.2.3 Boxplots
+Next, we used boxplots to explore the distribution of categorical variables (gender, race, smoking status, hypertension status, diabetes status) and did not observe any extreme outliers or unusual frequency distributions.
+
+```{r}
+## Boxplots for categorical predictors
+
+p1 <- ggplot(training_data, aes(x = factor(gender), y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Gender (0 = Female, 1 = Male)", y = NULL) +
+  theme_bw()
+
+p2 <- ggplot(training_data, aes(x = smoking, y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Smoking Status", y = NULL) +
+  theme_bw()
+
+p3 <- ggplot(training_data, aes(x = race, y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Race", y = NULL) +
+  theme_bw()
+
+p4 <- ggplot(training_data, aes(x = factor(diabetes), y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Diabetes", y = NULL) +
+  theme_bw()
+
+p5 <- ggplot(training_data, aes(x = factor(hypertension), y = log_antibody)) +
+  geom_boxplot() +
+  labs(x = "Hypertension", y = NULL) +
+  theme_bw()
+
+# Using patchwork
+((p1 + p2) / (p3 + p4) / (p5 + plot_spacer())) 
+```
+
 
 ## 2.3. Correlation Analysis
+We then analyzed a correlation matrix to assess collinearity among predictors. We found that BMI is moderately correlated with both height (r ≈ -0.5) and weight (r ≈ 0.5), and SBP is strongly correlated with hypertension status (r ≈ 0.8). These relationships are expected given BMI's dependence on height and weight, and the physiological link between SBP and hypertension.
+Since multicollinearity among predictors can inflate variance in regression coefficients, we will consider regularization techniques (lasso/ridge penalties) when building our models.
 
 ```{r}
 
@@ -157,13 +259,6 @@ y <- training_data$log_antibody
 
 # Produce corrplot
 corrplot::corrplot(cor(x), method = 'circle', type = 'full')
-
-```
-
-## 2.4. Exploratory Plots
-
-```{r}
-
 
 ```
 
