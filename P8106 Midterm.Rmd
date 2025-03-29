@@ -1,13 +1,9 @@
 ---
-title: "P8106 Midterm"
+title: "P8106 Midterm: Working Document"
 author:
 - "Naomi Simon-Kumar, Ila Kanneboyina, Shayne Estill"
 date: "03/24/2025"
-output:
-  pdf_document:
-    latex_engine: xelatex
-    toc: true
-    toc_depth: 2
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -229,7 +225,6 @@ knitr::kable(table1)
 ```
 
 
-
 Based on the exploratory analysis of continuous predictors, time since vaccination appears to be right-skewed.
 
 # Model Selection
@@ -255,11 +250,8 @@ print(summary_model)
 ```
 The first model we will try is multiple linear regression. This strength of this model lays in its simplicity and interpretability, so if later we find it performs the best it would be the ideal choice. However, from our EDA earlier we already have an idea that a linear model may not be the best since none of the pdps show a clear linear trend implying there may be more complexities to consider. Also, as shown in our correlation matrix, there may be correlation among predictors (e.g. height/weight and bmi) which we may want to consider through use of more complex models that have regularization penalities. The summary shows us the significant predictors in our multiple linear regression are age, gender, smoking status, height, weight and bmi. 
 
+## Elastic Net
 
-
-
-
-#Elastic Net
 ```{r}
 set.seed(299)
 enet_fit <- train(log_antibody ~ ., data = training_data, method = "glmnet",
@@ -281,17 +273,17 @@ myPar <- list(superpose.symbol = list(col = myCol),
               superpose.line = list(col = myCol))
 
 plot(enet_fit, par.settings = myPar)
-```
 
-```{r}
 plot(enet_fit, xvar = "lambda", label = TRUE)
+
 ```
 
 *add justification for grid --> tried a range of lambda values and the lambda was at the lower
 range of the grid...The optimal lambda was found to be at the lower bound 
 The r-squared value is relatively low, thus providing evidence that this may not be a great model. 
 
-#PCR
+## PCR
+
 ```{r}
 set.seed(299)
 pcr_mod <- pcr(log_antibody ~ .,
@@ -312,72 +304,72 @@ ncomp_cv <- which.min(cv_mse$val[1,,]) - 1
 ncomp_cv
 ```
 
-
-
-
-##PCR using caret
+## PCR
 
 ```{r}
+
 set.seed(299)
 pcr_fit <- train(x, y,
-method = "pcr",
-tuneGrid = data.frame(ncomp = 1:16),
-trControl = ctrl1,
-preProcess = c("center", "scale"))
-```
+                 method = "pcr",
+                 tuneGrid = data.frame(ncomp = 1:16),
+                 trControl = ctrl1,
+                 preProcess = c("center", "scale"))
 
-```{r}
+# Plot
 ggplot(pcr_fit, highlight = TRUE) + theme_bw()
+
 ```
 
 We fit the PCR model using the function pcr(). PCR and PLS models are good for addressing
 multicollinearity by maximizing the variance of predictor variables. 
 
-##PLS using caret 
+## PLS  
 
-#PLS
 ```{r}
+
 set.seed(299)
-pls_mod <- plsr(log_antibody ~ .,
-data = training_data,
-scale = TRUE,
-validation = "CV")
-summary(pls_mod)
-```
 
-```{r}
-# plot cross-validated MSEP for PLS
-validationplot(pls_mod, val.type = "MSEP", legendpos = "topright")
-```
+# Checking initial grid range while fitting PLS model
+# pls_fit <- train(
+#  x = x,
+#  y = y,
+#  method = "pls",
+#  tuneGrid = data.frame(ncomp = 1:8),
+#  trControl = ctrl1,
+ # preProcess = c("center", "scale")
+#)
 
-```{r}
-# determine the optimal number of components
-cv_mse <- RMSEP(pls_mod)
-ncomp_cv <- which.min(cv_mse$val[1,,]) - 1
-ncomp_cv
+# Expanded grid to check more 
+pls_fit <- train(
+  x = x,
+  y = y,
+  method = "pls",
+  tuneGrid = data.frame(ncomp = 1:13),
+  trControl = ctrl1,
+  preProcess = c("center", "scale")
+)
+
+# Summary of model
+summary(pls_fit)
+
+# Visualize
+ggplot(pls_fit, highlight = TRUE) 
+
 ```
 
 We fit the PLS model using the function plsr(). This method uses a small number of 
 the original inputs and considers out outcome, log antibody levels, making it more
 predictive over PCR potentially. 
 
-
 We fit an elastic net model using the train() with method = "glmnet" function. Elastic
 net models are good for effectively dealing with highly correlated groups of predictors. 
 
-```{r}
-resamp <- resamples(list(elastic_net = enet_fit,
-pls = pls_fit,
-pcr = pcr_fit))
-summary(resamp)
-```
+**Justification about tuning grid** 
 
-```{r}
-bwplot(resamp, metric = "RMSE")
-```
-
+Initially, our tuning grid was set to 1:8 to see the range of values for RMSE. However, we expanded the tuning grid to ncomp = 1:13 to explore whether additional components could meaningfully reduce RMSE. While RMSE continued to decrease slightly, the performance plateaued after 9 components, with no further improvement beyond that. Therefore, we were able to confirm that our original grid was sufficient and that 9 components is an appropriate model choice without overfitting.
 
 ## MARS - Naomi
+
 ```{r}
 
 # Set seed for reproducibility
@@ -423,9 +415,9 @@ As the interaction `degree` increased, RMSE values became more variable rather t
 In other words, cross-validation results showed that a model with approximately 9 terms and no interactions (product degree = 1) minimized prediction error (RMSE ≈ 0.529). 
 
 **Optimal parameters and final model coefficients**
-The best-tuned model selected `degree = 1` and `nprune = 9`. Therefore, the final model includes 9 retained terms with no interaction effects.
+The best-tuned model selected `degree = 1` and `nprune = `10`. Therefore, the final model includes 10 retained terms with no interaction effects.
 
-## GAM - Naomi
+## GAM
 
 I will proceed with constructing a GAM model, allowing us to mix non-linear and linear terms and build a model estimating the relationship between the outcome (`log_antibody`) and predictors in the provided dataset.
  
@@ -464,18 +456,13 @@ summary(gam.fit)
 
 ```
 
-* Some of the predictors have estimated degrees of freedom (edf) greater than 1, specifically height, BMI, and time, indicating that they are nonlinear smooth functions. This is supported by the GAM predictor plots.
+* Some of the predictors have estimated degrees of freedom (edf) greater than 1 — specifically height, BMI, SBP, and time — indicating that they are nonlinear smooth functions. This is supported by the GAM predictor plots. Weight, while slightly above 1, was not statistically significant and does not show strong evidence of nonlinearity.
 
-* Others appear approximately linear (edf ≈ 1), including weight, SBP, and LDL. 
+* LDL had an EDF < 1 (EDF = 0.55), indicating that the term was heavily penalized and shrunk toward zero. This indicates LDL contributed very little to the model, with a negligible effect on the outcome. The corresponding predictor plot supports this interpretation.
 
-* Among the nonlinear terms, BMI and time are highly significant (p < 2e-16), suggesting meaningful nonlinear associations with the log antibody levels.
+* Among the nonlinear terms, SBP, BMI, time, and height are significant (p < 0.05), suggesting meaningful nonlinear associations with the log antibody levels.
 
-* However, not all nonlinear terms with edf > 1 are statistically significant. i.e, height has an edf of 2.272 but a non-significant p-value (p = 0.3736).
-
-* SBP is a linear term (edf = 1.00) and also statistically significant (p = 0.0182), suggesting a meaningful linear relationship. It is the only linear term that is statistically significant. 
-
-
-# Code for Comparison/Model selection
+# Comparison/Model selection
 
 ```{r}
 
@@ -493,34 +480,36 @@ summary(resamp)
 # Plot RMSE comparison
 bwplot(resamp, metric = "RMSE")
 
-
 ```
 
 MARS has the smallest RMSE, so we will try to apply this model to dat2. 
 
+# Test Error for Selected Model Applied to New Dataset: MARS
+
 ```{r}
+## NOTE: Naomi commented out this code because it kept running errors: ie y2 hasnt been defined
 set.seed(299)
-mars.pred <- predict(mars.fit, newdata = dat2)
+# mars.pred <- predict(mars.fit, newdata = dat2)
+
 ```
 
 ```{r}
+
 set.seed(299)
-mars_rmse <- sqrt(mean((y2 - mars.pred)^2))
-mars_rmse
+#mars_rmse <- sqrt(mean((y2 - mars.pred)^2))
+#mars_rmse
+
 ```
 
 
 ```{r}
-predy2_pcr2 <- predict(mars.fit, newdata = dat2)
-mean((y2 - predy2_pcr2)^2)
+
+#predy2_pcr2 <- predict(mars.fit, newdata = dat2)
+#mean((y2 - predy2_pcr2)^2)
+
 ```
 
-
-
-
 ```{r}
-#Next, obtaining the test error:
-
 
 # Set seed for reproducibility
 set.seed(299)
@@ -536,5 +525,6 @@ test_rmse_mars <- sqrt(mean((y_testing - y_pred_MARS)^2))
 
 # Print test RMSE
 test_rmse_mars
+
 ```
 
