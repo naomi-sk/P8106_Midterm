@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ```
 
-## Libraries
+# Libraries
 
 ```{r}
 
@@ -32,7 +32,7 @@ library(pls)
 
 ```
 
-## Partition into training and testing set
+# Data Cleaning and Preparation
 
 ```{r}
 
@@ -55,8 +55,9 @@ ctrl1 <- trainControl(method = "cv", number = 10)
 # Remove non-predictor variables
 training_data <- training(data_split) %>% select(-id) # remove ID variable 
 testing_data <- testing(data_split) %>% select(-id) # remove ID variable 
+dat2 <- dat2 %>% select(-id) # remove ID variable 
 
-# Convert categorical variables to factor with meaningful labels
+# Convert categorical variables to factor: Training Data
 training_data <- training_data %>%
   mutate(gender = factor(gender, 
                          levels = c(0, 1), 
@@ -72,6 +73,25 @@ training_data <- training_data %>%
     hypertension = factor(hypertension, 
                           levels = c(0, 1), 
                           labels = c("No", "Yes")))
+
+# Convert categorical variables to factor: Testing Data
+testing_data <- testing_data %>%
+  mutate(gender = factor(gender, 
+                         levels = c(0, 1), 
+                         labels = c("Female", "Male")), 
+    race = factor(as.character(race), 
+                  levels = c("1", "2", "3", "4"), 
+                  labels = c("White", "Asian", "Black", "Hispanic")),
+    smoking = factor(as.character(smoking), levels = c("0", "1", "2"), 
+                     labels = c("Never", "Former", "Current")),
+    diabetes = factor(diabetes, 
+                      levels = c(0, 1), 
+                      labels = c("No", "Yes")),
+    hypertension = factor(hypertension, 
+                          levels = c(0, 1), 
+                          labels = c("No", "Yes")))
+
+# Convert categorical variables to factor: Dat2
 
 dat2 <- dat2 %>%
   mutate(gender = factor(gender, 
@@ -94,7 +114,7 @@ str(training_data)
 
 ```
 
-## Exploratory Analysis
+# Exploratory Analysis
 
 ```{r}
 
@@ -484,32 +504,9 @@ bwplot(resamp, metric = "RMSE")
 
 ```
 
-MARS has the smallest mean RMSE (`0.5284505`), so we will try to apply this model to dat2. 
+MARS has the smallest mean RMSE (`0.5284505`), therefore we select it as the optimal model.
 
-# Test Error for Selected Model Applied to New Dataset: MARS
-
-```{r}
-## NOTE: Naomi commented out this code because it kept running errors: ie y2 hasnt been defined
-set.seed(299)
-# mars.pred <- predict(mars.fit, newdata = dat2)
-
-```
-
-```{r}
-
-set.seed(299)
-#mars_rmse <- sqrt(mean((y2 - mars.pred)^2))
-#mars_rmse
-
-```
-
-
-```{r}
-
-#predy2_pcr2 <- predict(mars.fit, newdata = dat2)
-#mean((y2 - predy2_pcr2)^2)
-
-```
+We will first evaluate its performance based on the testing dataset.
 
 ```{r}
 
@@ -517,16 +514,43 @@ set.seed(299)
 set.seed(299)
 
 # Obtain response variable from testing data
-y_testing <- dat2$log_antibody
+y_testing_MARS <- testing_data$log_antibody
 
 # Predict on test data using trained MARS model
-y_pred_MARS <- predict(mars.fit, newdata = dat2)
+y_pred_MARS <- predict(mars.fit, newdata = testing_data)
 
 # Compute RMSE (Test Error)
-test_rmse_mars <- sqrt(mean((y_testing - y_pred_MARS)^2))
+test_rmse <- sqrt(mean((y_testing_MARS - y_pred_MARS)^2))
 
 # Print test RMSE
-test_rmse_mars
+test_rmse
 
 ```
 
+Therefore, the test error for the MARS model is `0.5269679`.
+
+# Test Error for Selected Model Applied to New Dataset: MARS
+
+Subsequently, we want to evaluate the generalizability of this model using another independent dataset, (`dat2`)`.
+
+```{r}
+
+# Set seed for reproducibility
+set.seed(299)
+
+# Obtain response variable from dat2
+y_testing_DAT2 <- dat2$log_antibody
+
+# Predict on dat2 using trained MARS model
+y_pred_DAT2 <- predict(mars.fit, newdata = dat2)
+
+# Compute RMSE (Test Error)
+test_rmse <- sqrt(mean((y_testing_DAT2 - y_pred_DAT2)^2))
+
+# Print test RMSE
+test_rmse
+
+
+```
+
+The test error for the MARS model when fit on the new dataset (`dat2`) is `0.5335579`. 
