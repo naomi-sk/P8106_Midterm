@@ -24,6 +24,21 @@ knitr::opts_chunk$set(
 
 ```{r}
 
+## LOAD LIBRARIES
+
+library(tidyverse)
+library(caret)
+library(ggplot2)  
+library(patchwork)
+library(corrplot)
+library(mgcv)
+library(tidymodels)
+library(earth)
+library(boot) 
+library(table1)
+library(knitr)
+library(pls)
+
 ## DATA CLEANING AND PREPARATION
 
 # Load training data
@@ -270,16 +285,18 @@ summary(gam_antibody)
 
 ## 4.1. Model Comparison and Selection
 
+We evaluated six prediction models for antibody levels: multiple linear regression, elastic net, principal component regression (PCR), partial least squares (PLS), multivariate adaptive regression splines (MARS), and generalized additive model (GAM). To objectively compare model performance, we used 10-fold cross-validation with RMSE as the evaluation metric.
+The cross-validation results showed that the MARS model achieved the lowest mean RMSE (0.5285), followed closely by GAM (0.5304) and elastic net (0.5317). The linear model performed notably worse (RMSE = 0.5409). This supported our initial analysis from EDA that linear relationships may not adequately capture the complex relationships in the data. PCR and PLS models performed moderately well, with RMSE values of 0.5367 and 0.5323, respectively.
+
+The MARS model, with optimal parameters of degree = 1 (no interaction terms) and nprune = 10 (retaining 10 terms), was selected as the final prediction model of antibody levels due to its optimal predictive performance, effectively capturing non-linear relationships between predictors and antibody levels.
 
 ```{r}
 
+## insert code
 
 ```
 
 ## 4.2. Final Model: xxx
-
-* Detailed specification of the selected model (coefficients, terms, etc.)
-* Visualisations if appropriate
 
 ```{r}
 
@@ -289,6 +306,10 @@ summary(gam_antibody)
 
 Test set performance metrics & interpretation
 
+e.g. 
+
+When applied to the held-out test set from the original dataset, the MARS model demonstrated consistent performance with a test RMSE of 0.5270, indicating good generalizability to unseen data.
+
 ```{r}
 
 ```
@@ -296,6 +317,7 @@ Test set performance metrics & interpretation
 ## 4.3. Model Generalizability
 
 Evaluation of model based on dat2.
+
 
 ```{r}
 
@@ -312,11 +334,4 @@ Evaluation of model based on dat2.
 
 Phillips, N. D. (n.d.). YaRrr! The Pirate's Guide to R. Retrieved March 29, 2025, from https://bookdown.org/ndphillips/YaRrr/arranging-plots-with-parmfrow-and-layout.html
 
-# 7. Appendices
-
-If relevant
-
-```{r}
-
-```
 
